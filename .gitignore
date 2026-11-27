@@ -1,0 +1,10 @@
+node_modules/
+.npm-cache/
+client/dist/
+data/*.sqlite
+data/*.sqlite-*
+data/_spec/
+.env
+.env.*
+!.env.example
+*.log

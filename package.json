@@ -1,0 +1,33 @@
+{
+  "name": "tire-barcode",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,client -c yellow,cyan \"node server/index.js\" \"vite --config client/vite.config.js\"",
+    "prestart": "node server/ensure-runtime.js",
+    "start": "node server/index.js",
+    "build": "vite build --config client/vite.config.js",
+    "test": "node --test server"
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.28.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.10.0",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2",
+    "html5-qrcode": "^2.3.8",
+    "mssql": "^12.7.14",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.2.0",
+    "vite": "^6.3.5"
+  }
+}
