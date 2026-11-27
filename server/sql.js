@@ -41,6 +41,34 @@ export async function getPool() {
   return poolPromise
 }
 
+export async function withHandCleanupLock(work) {
+  const pool = await getPool()
+  const transaction = new sql.Transaction(pool)
+  await transaction.begin()
+  try {
+    const result = await new sql.Request(transaction).query(`
+      DECLARE @result int;
+      EXEC @result = sp_getapplock
+        @Resource = N'TireHandPhotoCleanup',
+        @LockMode = N'Exclusive',
+        @LockOwner = N'Transaction',
+        @LockTimeout = 0;
+      SELECT @result AS lockResult;
+    `)
+    const code = Number(result.recordset?.[0]?.lockResult)
+    if (!Number.isFinite(code) || code < 0) {
+      await transaction.rollback()
+      return { skipped: "lock" }
+    }
+    const value = await work()
+    await transaction.commit()
+    return value
+  } catch (error) {
+    await transaction.rollback().catch(() => {})
+    throw error
+  }
+}
+
 export async function executeProcedure(name, inputs) {
   const pool = await getPool()
   const request = pool.request()

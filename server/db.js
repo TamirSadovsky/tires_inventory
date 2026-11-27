@@ -207,6 +207,9 @@ export function createSqliteStore(file) {
     )
   `)
   const listHandPhotos = db.prepare("SELECT * FROM local_hand_photos ORDER BY id")
+  const deleteMarkedHandPhotos = db.prepare(
+    "DELETE FROM local_hand_photos WHERE set_on_local_app = 1",
+  )
   const insertSfira = db.prepare(`
     INSERT INTO local_sfira (
       client_id, manufacturer_id, manufacturer_name, manufacturer_degem, description,
@@ -286,6 +289,9 @@ export function createSqliteStore(file) {
     },
     listLocalHandPhotos() {
       return listHandPhotos.all()
+    },
+    deleteLocalHandPhotosMarked() {
+      deleteMarkedHandPhotos.run()
     },
     saveLocalSfira(row) {
       const result = insertSfira.run({ ...row, createdAt: now() })
