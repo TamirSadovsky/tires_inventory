@@ -20,6 +20,28 @@ export function decodeJpeg(image) {
   return buffer
 }
 
+export function blobNameFromLink(link, containerName) {
+  const text = String(link || "").trim()
+  const container = String(containerName || "").trim()
+  if (!text || !container) return null
+  let pathname = text
+  try {
+    pathname = new URL(text).pathname
+  } catch {
+    if (!text.startsWith("/")) return null
+  }
+  let decoded
+  try {
+    decoded = decodeURIComponent(pathname)
+  } catch {
+    return null
+  }
+  const parts = decoded.split("/").filter(Boolean)
+  if (parts.length < 2 || parts.some((part) => part === "." || part === "..")) return null
+  if (parts[0].toLowerCase() !== container.toLowerCase()) return null
+  return parts.slice(1).join("/")
+}
+
 export function createPhotoStore(dir) {
   if (process.env.AZURE_STORAGE_CONNECTION_STRING) return createAzurePhotoStore()
   return createLocalPhotoStore(dir)
@@ -45,6 +67,17 @@ function createAzurePhotoStore() {
       const container = service.getContainerClient(containerName)
       await container.deleteBlob(stored.name).catch(() => {})
     },
+    async removeByLink(link) {
+      const name = blobNameFromLink(link, containerName)
+      if (!name) return "skipped"
+      try {
+        const container = service.getContainerClient(containerName)
+        const result = await container.getBlockBlobClient(name).deleteIfExists()
+        return result.succeeded ? "deleted" : "missing"
+      } catch {
+        return "failed"
+      }
+    },
   }
 }
 
@@ -61,6 +94,16 @@ function createLocalPhotoStore(dir) {
     async remove(stored) {
       if (!stored?.name) return
       fs.rmSync(path.join(dir, stored.name), { force: true })
+    },
+    async removeByLink(link) {
+      const name = blobNameFromLink(link, "stickers")
+      if (!name) return "skipped"
+      const file = path.resolve(dir, name)
+      const root = path.resolve(dir)
+      if (file !== root && !file.startsWith(root + path.sep)) return "skipped"
+      if (!fs.existsSync(file)) return "missing"
+      fs.rmSync(file, { force: true })
+      return "deleted"
     },
   }
 }

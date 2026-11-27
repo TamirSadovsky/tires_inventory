@@ -10,6 +10,7 @@ import { createGateway } from "./gateway.js"
 import { previewTire, saveInventory } from "./count.js"
 import { saveHandSticker } from "./handPhoto.js"
 import { createPhotoStore } from "./photos.js"
+import { startHandPhotoCleanup } from "./handCleanup.js"
 import { resolveManufacturer } from "./manufacturer.js"
 import { sqlConfigured } from "./sql.js"
 import { loginSql } from "./sqlLogin.js"
@@ -239,6 +240,9 @@ function sendError(res, error) {
 const server = app.listen(port, () => {
   console.log(`Tire Barcode on http://localhost:${port} (${gateway.mode})`)
 })
+
+const stopHandPhotoCleanup = startHandPhotoCleanup({ gateway, photos })
+server.on("close", stopHandPhotoCleanup)
 
 server.on("error", (error) => {
   console.error(error.message)

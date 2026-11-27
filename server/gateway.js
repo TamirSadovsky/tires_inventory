@@ -1,4 +1,4 @@
-import { executeProcedure, mssql, sqlConfigured } from "./sql.js"
+import { executeProcedure, mssql, sqlConfigured, withHandCleanupLock } from "./sql.js"
 
 const LOCAL_WAREHOUSES = [
   { id: 1, description: "ראשי" },
@@ -10,6 +10,7 @@ export function createGateway(store) {
 }
 
 function localGateway(store) {
+  let cleanupLocked = false
   return {
     mode: "local",
     async warehouses() {
@@ -33,6 +34,23 @@ function localGateway(store) {
     },
     async insertHandPhoto(row) {
       return store.saveLocalHandPhoto(row)
+    },
+    async listHandPhotosToDelete() {
+      return store.listLocalHandPhotos()
+        .filter((row) => Number(row.set_on_local_app) === 1)
+        .map((row) => ({ clientId: row.client_id, picLink: row.pic_link }))
+    },
+    async deleteHandPhotosMarked() {
+      store.deleteLocalHandPhotosMarked()
+    },
+    async withHandCleanupLock(work) {
+      if (cleanupLocked) return { skipped: "lock" }
+      cleanupLocked = true
+      try {
+        return await work()
+      } finally {
+        cleanupLocked = false
+      }
     },
   }
 }
@@ -114,6 +132,20 @@ function sqlGateway() {
       ])
       return { ok: true }
     },
+    async listHandPhotosToDelete() {
+      const rows = await executeProcedure("dbo.SetTireSfiraHandToDel", [])
+      return rows.map((row) => ({
+        clientId: Number(pick(row, "ClientID")),
+        picLink: String(pick(row, "PicLink") || ""),
+      }))
+    },
+    async deleteHandPhotosMarked() {
+      await executeProcedure("dbo.DelTireSfiraHand", [
+        { name: "ClientID", type: sql.Int, value: 0 },
+        { name: "PicLink", type: sql.NVarChar(sql.MAX), value: "" },
+      ])
+    },
+    withHandCleanupLock,
     async insertInOut(row) {
       await executeProcedure("dbo.InsertTireInOut", [
         { name: "ClientID", type: sql.Int, value: row.clientId },
